@@ -1,0 +1,82 @@
+---
+title: "Prerequisites for Building DDLC Android APK"
+sidebarTitle: "Prerequisites"
+description: "Software and tools required before building the DDLC Android APK: Ren'Py SDK, RAPT, the original DDLC game files, unrpa, and unrpyc."
+---
+
+Before you can compile the DDLC Android port, you need several tools installed and a copy of the original game's asset files. This page lists everything required, where to get it, and what each piece is used for during the build.
+
+<Note>
+  This repository already contains all patched and decompiled Ren'Py scripts in the `game/` directory. You do **not** need to decompile or re-patch anything — you only need the original game's binary assets (images, audio, fonts) that cannot be redistributed here.
+</Note>
+
+<Steps>
+  <Step title="Ren'Py SDK">
+    Download the Ren'Py SDK from [github.com/renpy/renpy](https://github.com/renpy/renpy) (or from the official [Ren'Py website](https://www.renpy.org/latest.html)). The SDK provides the Ren'Py launcher, the `renpy.py` command-line runner, and — critically — the bundled RAPT tooling used to compile Android APKs. Place the SDK somewhere permanent; the DDLC project directory should live inside or alongside it.
+  </Step>
+
+  <Step title="RAPT (Ren'Py Android Packaging Tools)">
+    RAPT is included with the Ren'Py SDK under the `rapt/` subdirectory. It is not a separate download, but it does require its own one-time SDK installation step to download the Android SDK and NDK components. You will run `android.py installsdk` to complete that setup. See the [RAPT Build](/building/rapt) page for the exact commands.
+  </Step>
+
+  <Step title="Android SDK and JDK">
+    RAPT uses the Android SDK (build tools, platform tools) and a Java Development Kit to compile and sign the APK. RAPT's `installsdk` command can download the Android SDK components automatically, but you must have a JDK already installed and on your `PATH`. OpenJDK 11 or later is recommended.
+
+    ```bash
+    # Verify Java is available
+    java -version
+    ```
+  </Step>
+
+  <Step title="Original DDLC game files">
+    You must own a copy of Doki Doki Literature Club! and have its PC build available locally. The game can be obtained from:
+
+    - **Steam**: [store.steampowered.com/app/698780/](https://store.steampowered.com/app/698780/)
+    - **itch.io**: [teamsalvato.itch.io/ddlc](https://teamsalvato.itch.io/ddlc) (the itch project slug is `teamsalvato/ddlc`, matching `build.itch_project` in `options.rpy`)
+
+    You need the `game/` directory from the PC install, specifically the `.rpa` asset archives (`images.rpa`, `audio.rpa`, `fonts.rpa`) and any standalone asset files.
+  </Step>
+
+  <Step title="unrpa — .rpa archive extractor">
+    [unrpa](https://github.com/Lattyware/unrpa) extracts the contents of Ren'Py `.rpa` archive files into plain directories. Install it via pip:
+
+    ```bash
+    pip install unrpa
+    ```
+
+    You will use it to unpack the original game's image, audio, and font archives into the `game/` directory of this repository before building.
+  </Step>
+
+  <Step title="unrpyc — .rpyc script decompiler (optional)">
+    [unrpyc](https://github.com/CensoredUsername/unrpyc) decompiles compiled Ren'Py `.rpyc` bytecode back into human-readable `.rpy` source. The patched scripts in this repository were originally produced using unrpyc. You only need this tool if you intend to re-examine or re-decompile scripts from the original game — it is **not** required for a standard build from this repo.
+
+    ```bash
+    git clone https://github.com/CensoredUsername/unrpyc.git
+    ```
+  </Step>
+
+  <Step title="Git">
+    Git is required to clone this repository. Any recent version of Git works.
+
+    ```bash
+    git clone https://github.com/saber-nyan/ddlc-android.git
+    ```
+  </Step>
+
+  <Step title="Python environment">
+    The Ren'Py SDK and its tooling scripts require Python. Ren'Py bundles its own Python interpreter, so a system-level Python installation is not strictly mandatory for running the launcher — but the RAPT helper scripts (`android.py`) are Python scripts and rely on the SDK's bundled interpreter. Ensure your environment can execute scripts in the Ren'Py SDK directory without version conflicts.
+  </Step>
+</Steps>
+
+## Summary checklist
+
+| Tool | Purpose | Required for build |
+|------|---------|-------------------|
+| Ren'Py SDK | Launcher, runtime, RAPT host | ✅ Yes |
+| Android SDK + JDK | APK compilation and signing | ✅ Yes |
+| Original DDLC game files | Asset source (images, audio, fonts) | ✅ Yes |
+| unrpa | Extract `.rpa` archives | ✅ Yes |
+| unrpyc | Decompile `.rpyc` scripts | ⬜ Optional |
+| Git | Clone this repository | ✅ Yes |
+
+Once all prerequisites are in place, continue to [Android Config](/building/android-config) to review the build settings, then follow the [RAPT Build](/building/rapt) guide to compile the APK.

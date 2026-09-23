@@ -1,0 +1,148 @@
+---
+title: "Android Build Configuration for DDLC"
+sidebarTitle: "Android Config"
+description: "Reference for .android.json and options.rpy build settings: package name, version, orientation, permissions, and archive classification rules."
+---
+
+Two files control how the DDLC Android port is packaged: `.android.json` in the repository root and the `init python` block inside `game/options.rpy`. RAPT reads `.android.json` to configure the Android-specific aspects of the build (package identity, permissions, API target), while `options.rpy` controls how game files are sorted into `.rpa` archives that are bundled into the APK.
+
+## .android.json
+
+The `.android.json` file is placed in the project root alongside the `game/` directory. RAPT reads it automatically when you invoke `android.py build`. The full contents of this file as committed to the repository are:
+
+```json
+{
+  "layout": null,
+  "package": "ru.saber_nyan.ddlc",
+  "include_pil": false,
+  "numeric_version": "5",
+  "expansion": false,
+  "name": "Doki Doki Literature Club!",
+  "source": false,
+  "icon_name": "DDLC!",
+  "version": "0.0.5",
+  "target_version": 14,
+  "permissions": ["VIBRATE"],
+  "include_sqlite": false,
+  "store": "none",
+  "orientation": "sensorLandscape"
+}
+```
+
+### Field reference
+
+<ParamField path="package" type="string" required>
+  The Android application package identifier: `ru.saber_nyan.ddlc`. This value is permanent once you install the APK on a device — changing it creates a different app identity and existing saves cannot be migrated automatically.
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  The full application display name shown in the Android app drawer and task switcher: `Doki Doki Literature Club!`.
+</ParamField>
+
+<ParamField path="icon_name" type="string" required>
+  The short label displayed under the launcher icon: `DDLC!`. Kept brief to avoid truncation on small launcher grids.
+</ParamField>
+
+<ParamField path="version" type="string" required>
+  Human-readable version string: `0.0.5`. Displayed in app info and on distribution platforms.
+</ParamField>
+
+<ParamField path="numeric_version" type="string" required>
+  Android version code: `"5"`. Must be a monotonically increasing integer string. The Play Store and other package managers use this value (not `version`) to determine whether an update is newer than the installed build.
+</ParamField>
+
+<ParamField path="target_version" type="integer" required>
+  Minimum Android API level targeted: `14` (Android 4.0 Ice Cream Sandwich). RAPT uses this to set `minSdkVersion` in the generated `AndroidManifest.xml`.
+</ParamField>
+
+<ParamField path="orientation" type="string" required>
+  Screen orientation lock: `sensorLandscape`. This permits both landscape orientations (normal and reverse) based on the physical sensor, which is appropriate for a widescreen visual novel. Possible values mirror the Android `screenOrientation` manifest attribute.
+</ParamField>
+
+<ParamField path="permissions" type="array" required>
+  List of Android permissions declared in the manifest: `["VIBRATE"]`. Only vibration is requested — no network, storage, or camera permissions are needed.
+</ParamField>
+
+<ParamField path="expansion" type="boolean">
+  Whether to use an OBB (APK Expansion File): `false`. All game data is bundled directly inside the APK rather than delivered as a separate expansion archive.
+</ParamField>
+
+<ParamField path="include_pil" type="boolean">
+  Whether to bundle the Pillow (PIL) imaging library inside the APK: `false`. DDLC does not use runtime image processing features that require PIL.
+</ParamField>
+
+<ParamField path="include_sqlite" type="boolean">
+  Whether to bundle an SQLite library inside the APK: `false`. Ren'Py's save system does not require SQLite for this project.
+</ParamField>
+
+<ParamField path="store" type="string">
+  Target distribution store: `"none"`. No store-specific billing SDK or license-check code is injected. Set to `"amazon"` or `"google"` if distributing through those storefronts.
+</ParamField>
+
+<ParamField path="source" type="boolean">
+  Whether to include `.rpy` source files in the APK: `false`. Only compiled `.rpyc` bytecode and packed `.rpa` archives are shipped.
+</ParamField>
+
+<ParamField path="layout" type="null">
+  RAPT layout override: `null`. Uses the default Ren'Py APK layout.
+</ParamField>
+
+---
+
+## options.rpy build archives
+
+The `init python` block in `game/options.rpy` defines four named archives and classifies every game file into one of them. RAPT packs each archive into a separate `.rpa` file (`scripts.rpa`, `images.rpa`, `audio.rpa`, `fonts.rpa`) which are all bundled into the final APK.
+
+```python
+build.archive("scripts", "all")
+build.archive("images", "all")
+build.archive("audio", "all")
+build.archive("fonts", "all")
+
+build.classify("game/**.jpg", "images")
+build.classify("game/**.png", "images")
+
+build.classify("game/**.rpyc", "scripts")
+build.classify("game/**.txt", "scripts")
+build.classify("game/**.chr", "scripts")
+
+build.classify("game/**.wav", "audio")
+build.classify("game/**.mp3", "audio")
+build.classify("game/**.ogg", "audio")
+
+build.classify("game/**.ttf", "fonts")
+build.classify("game/**.otf", "audio")  # note: .otf is classified into audio archive
+```
+
+The following file patterns are **excluded** from all archives (classified as `None`):
+
+```python
+build.classify('**~', None)
+build.classify('**.bak', None)
+build.classify('**/.**', None)
+build.classify('**/#**', None)
+build.classify('**/thumbs.db', None)
+build.classify('**.rpy', None)       # source scripts excluded from APK
+build.classify('**.psd', None)
+build.classify('**.sublime-project', None)
+build.classify('**.sublime-workspace', None)
+build.classify('/music/*.*', None)
+build.classify('script-regex.txt', None)
+build.classify('/game/10', None)
+build.classify('/game/cache/*.*', None)
+```
+
+<Note>
+  Raw `.rpy` source files are excluded from the build output — only compiled `.rpyc` files are packaged. This matches `"source": false` in `.android.json`. The save directory is set to `"DDLC-1454445547"` via `config.save_directory`, matching the original PC game's save location name.
+</Note>
+
+## Developer mode flag
+
+<Warning>
+  `game/definitions.rpy` sets `config.developer = True` at the top of the file. This enables a debug overlay showing the current script file and line number at runtime (via `widget__info()`), enables rollback (`config.rollback_enabled = config.developer`), and activates other Ren'Py developer features. **You must change this to `False` before building a release APK.** Shipping a build with `config.developer = True` exposes internal state to end users and degrades performance.
+</Warning>
+
+```python
+# game/definitions.rpy — change before release
+define config.developer = False  # was: True  # FIXME: set to False b4 release
+```

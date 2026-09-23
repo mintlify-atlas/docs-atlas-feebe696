@@ -1,0 +1,124 @@
+---
+title: "Save System and Persistent State on Android"
+sidebarTitle: "Save System"
+description: "Documents DDLC Android's save configuration: autosave slots, background save behavior, persistent character state, and the singleton lock that prevents save corruption."
+---
+
+DDLC for Android inherits Ren'Py's save system and extends it with several mobile-specific settings to ensure game state is never lost when the player switches apps, takes a phone call, or lets the screen time out. This page documents every relevant configuration value, the duplicate-location patch, and the singleton process lock that prevents two concurrent game processes from writing to the same save directory.
+
+<Warning>
+  Do not manually edit files inside the save directory. DDLC's save format interleaves Python-pickled game state with Ren'Py internal metadata. Editing a save with a text editor or hex editor is likely to corrupt it in ways the game cannot recover from gracefully. Use the in-game save/load screens or the `delete_all_saves()` helper instead.
+</Warning>
+
+## Save Directory
+
+Ren'Py stores save files in a named subdirectory of the platform's application data location. On Android this resolves to the app's private external storage:
+
+```python
+define config.save_directory = "DDLC-1454445547"
+```
+
+The suffix `1454445547` is a project-specific identifier carried over from the original PC release. This means saves created by this Android port are stored in the same named folder that a PC build would use, which simplifies save transfer between devices if players copy the folder manually.
+
+## Autosave Configuration
+
+All autosave settings are applied at `init 65533` — late enough that all game screens and variables are already defined:
+
+```python
+init 65533 python:
+    config.has_autosave = True
+    config.autosave_on_quit = True
+    config.autosave_frequency = 10
+    config.save_on_mobile_background = True
+    config.quit_on_mobile_background = False
+```
+
+<CardGroup cols={2}>
+  <Card title="config.autosave_slots = 8" icon="floppy-disk">
+    Eight rotating autosave slots. Ren'Py fills them in round-robin order, so the oldest autosave is always at most eight auto-saves behind the current position.
+  </Card>
+  <Card title="config.autosave_frequency = 10" icon="clock">
+    An autosave is triggered every 10 player interactions (dialogue advances, menu selections). The source comment notes this was checked for lag and found acceptable.
+  </Card>
+  <Card title="config.autosave_on_quit = True" icon="power-off">
+    When the player exits through the in-game Quit button, an autosave is written before the process terminates.
+  </Card>
+  <Card title="config.save_on_mobile_background = True" icon="mobile">
+    The game writes a save automatically when the Android activity moves to the background — for example when the player presses the Home button or receives a notification.
+  </Card>
+</CardGroup>
+
+`config.quit_on_mobile_background = False` is equally important: the game does **not** terminate when backgrounded. Combined with `save_on_mobile_background = True`, this means the game saves its state but stays resident in memory, so Android can restore it instantly when the player returns.
+
+## Duplicate Save Location Fix
+
+Ren'Py on Android can register two save locations — one on internal storage and one on external storage — leading to a situation where saves written in one session cannot be found in another. The port removes the redundant second entry at startup:
+
+```python
+init python:
+    if len(renpy.loadsave.location.locations) > 1:
+        del(renpy.loadsave.location.locations[1])
+```
+
+The guard `len(...) > 1` prevents an `IndexError` if Ren'Py is ever updated to register only a single location by default.
+
+## Gamepad Disabled
+
+To prevent input conflicts on Android devices that enumerate virtual gamepads (such as certain Bluetooth controllers or accessibility devices), gamepad support is disabled unconditionally:
+
+```python
+renpy.game.preferences.pad_enabled = False
+```
+
+This line runs in the same `init python` block as the location fix and takes effect before the main menu is displayed.
+
+## Singleton Process Lock
+
+Android's task manager can launch a new instance of an app while a previous one is still shutting down. Two concurrent Ren'Py processes writing to the same save directory would corrupt save data. The port prevents this with the `SingleInstance` class from `python-packages/singleton.py`:
+
+```python
+python early:
+    import singleton
+    me = singleton.SingleInstance()
+```
+
+`python early` runs before Ren'Py initialises its display layer, ensuring the lock is acquired as early as possible. The `SingleInstance` constructor computes a lock file path based on the executable's absolute path and places it in `tempfile.gettempdir()`:
+
+```python
+class SingleInstance:
+    def __init__(self, flavor_id=""):
+        basename = os.path.splitext(os.path.abspath(sys.argv[0]))[0] \
+            .replace("/", "-").replace(":", "").replace("\\", "-") \
+            + '-%s' % flavor_id + '.lock'
+        self.lockfile = os.path.normpath(
+            tempfile.gettempdir() + '/' + basename)
+
+        if sys.platform == 'win32':
+            # Windows: exclusive file creation
+            self.fd = os.open(self.lockfile,
+                              os.O_CREAT | os.O_EXCL | os.O_RDWR)
+        else:
+            # Android / Linux: POSIX advisory lock
+            import fcntl
+            self.fp = open(self.lockfile, 'w')
+            self.fp.flush()
+            fcntl.lockf(self.fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+```
+
+On Android (the non-Windows path), `fcntl.LOCK_EX | fcntl.LOCK_NB` requests an exclusive non-blocking advisory lock. If a second instance tries to acquire the same lock while the first is still running, `fcntl.lockf` raises `IOError` and `SingleInstance` throws `SingleInstanceException`, terminating the duplicate process before it can touch any save files.
+
+## Persistent Character State
+
+Character presence is tracked in the Ren'Py persistent store, not on the filesystem. The `delete_all_saves` helper lets advanced users wipe all manual and autosave slots programmatically:
+
+```python
+def delete_all_saves():
+    for savegame in renpy.list_saved_games(fast=True):
+        renpy.unlink_save(savegame)
+```
+
+`renpy.list_saved_games(fast=True)` returns save slot identifiers without loading the save data, making iteration cheap. `renpy.unlink_save` then removes each slot's `.save` file and its screenshot thumbnail. This function is intended for use in special story-driven scenarios where a clean slate is required — it should not be called in normal gameplay.
+
+<Note>
+  Save files created by this Android port are structurally identical to those created by the PC build (both use `config.save_directory = "DDLC-1454445547"`). However, save compatibility between significantly different builds is not guaranteed because pickled save data embeds Python object references that may not match across Ren'Py version boundaries.
+</Note>

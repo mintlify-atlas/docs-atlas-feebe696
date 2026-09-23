@@ -1,0 +1,112 @@
+---
+title: "Frequently Asked Questions — DDLC for Android"
+sidebarTitle: "FAQ"
+description: "Answers to common questions about DDLC for Android: compatibility, saves, crashes, .chr files, the poem minigame, and known issues."
+---
+
+This page collects the most common questions about the DDLC for Android port. If your question isn't answered here, check the [GitHub issue tracker](https://github.com/saber-nyan/ddlc-android/issues) before opening a new report — your problem may already be tracked or resolved.
+
+<Warning>
+  **Spoiler warning.** Several answers below reference game mechanics, file names, and save-system details that contain spoilers for *Doki Doki Literature Club!*. Read at your own risk if you have not yet completed the game.
+</Warning>
+
+<AccordionGroup>
+  <Accordion title="What Android version is required?">
+    The APK targets **Android API level 14**, which corresponds to **Android 4.0 Ice Cream Sandwich**. Any device running Android 4.0 or higher should be able to install and run the game.
+
+    This minimum SDK level was chosen because Ren'Py's RAPT toolchain supports it and it covers the overwhelming majority of Android devices still in use. There is no maximum SDK restriction — the game has been tested on modern versions of Android as well.
+  </Accordion>
+
+  <Accordion title="Why does the game only play in landscape? I can't rotate it to portrait.">
+    This is intentional. The Android manifest sets the screen orientation to `sensorLandscape`, which locks the game to a landscape layout while still allowing the display to flip between 0° and 180° landscape based on your device's accelerometer.
+
+    The original *Doki Doki Literature Club!* was designed for a 1280×720 widescreen aspect ratio. Forcing a portrait orientation would require either cropping the scene significantly or adding large black bars on the sides, neither of which would produce a playable result. The `sensorLandscape` setting ensures the game fills the screen correctly on any Android device.
+
+    If the game appears sideways, enable **auto-rotate** in your device's quick settings panel and tilt your device to landscape.
+  </Accordion>
+
+  <Accordion title="Where are my saves stored?">
+    All save data is written to the Ren'Py save directory named **`DDLC-1454445547`**. On a typical Android device the full path is:
+
+    ```
+    /sdcard/Android/data/ru.saber_nyan.ddlc/files/DDLC-1454445547/
+    ```
+
+    This directory contains manual saves, persistent data (used for the game's meta narrative mechanics), and **8 autosave slots**. The game autosaves in the following situations, all configured in `options.rpy`:
+
+    - When you quit the game (`config.autosave_on_quit = True`)
+    - When the app is sent to the background (`config.save_on_mobile_background = True`)
+    - Periodically during gameplay (`config.autosave_frequency = 10`)
+
+    You generally do not need to manually save before closing the app.
+  </Accordion>
+
+  <Accordion title="The dialog box looks wrong — text is cut off or the box is the wrong size.">
+    This is a known issue that has been partially addressed in this port. The original game hard-codes dialog box dimensions in pixels tuned for a 1280×720 desktop display. On Android, the Ren'Py viewport may resolve to a different effective resolution depending on screen density and aspect ratio, causing the box to be undersized or text to overflow.
+
+    The port includes corrected dialog box sizing derived from an analysis of the root causes (documented internally in `boxes_sizing.txt`). If you are still seeing sizing problems, your device's screen resolution or DPI may fall outside the tested range. Please file an issue on GitHub with your device model and Android version.
+
+    For a deeper explanation of why this happens and how the fix was implemented, see the **internals/gui-fixes** page in this documentation.
+  </Accordion>
+
+  <Accordion title="The poem minigame doesn't work — I can't type anything.">
+    The poem minigame was broken in early versions of the port because it relied on mouse and keyboard input that does not map naturally to Android touch events. **This has been fixed** in the current build.
+
+    If you are using the latest APK from the [GitHub releases page](https://github.com/saber-nyan/ddlc-android/releases/latest) and the minigame is still not working, please report it as a bug. For a technical explanation of how the fix works, see the **internals/poem-game** page in this documentation.
+  </Accordion>
+
+  <Accordion title="Is this the official Android version of DDLC?">
+    **No.** This is an entirely unofficial fan port with no affiliation to Team Salvato, the developer of the original *Doki Doki Literature Club!*
+
+    There is currently no official Android release of DDLC. Furthermore, Team Salvato has publicly stated in their [IP guidelines](http://teamsalvato.com/ip-guidelines/) (under the "Fan Games" section) that they are **against** porting the game to other platforms. This project exists as a personal technical experiment and is provided as-is, with no warranty or official support.
+  </Accordion>
+
+  <Accordion title="Is there a Russian translation available?">
+    A Russian translation branch is in preparation. It is maintained in the **`ru-translation`** branch of the GitHub repository:
+
+    ```
+    https://github.com/saber-nyan/ddlc-android/tree/ru-translation
+    ```
+
+    The translation itself is a fan localization produced by [SUN-TEAM](https://vk.com/wall-101862768_5388). The `ru-translation` branch integrates their work into the Android port. This branch is not yet merged into the main branch, so the main APK release is **English only**. You will need to build the APK yourself from the `ru-translation` branch to get the Russian version.
+  </Accordion>
+
+  <Accordion title="The game crashes immediately at startup. What do I do?">
+    The most common cause of an immediate crash at startup is a **stale singleton lock**. The game uses a process-level singleton lock (via `singleton.SingleInstance()` in `definitions.rpy`) to prevent multiple simultaneous instances. If a previous session crashed before releasing the lock, the next launch attempt may fail.
+
+    To resolve this:
+
+    1. Go to **Settings → Apps** (or **Settings → Application Manager**) on your device.
+    2. Find **DDLC!** in the list and tap it.
+    3. Tap **Force Stop**.
+    4. Optionally tap **Clear Cache**.
+    5. Relaunch the game from your app drawer.
+
+    If the crash persists after a force stop, try uninstalling and reinstalling the APK. If you can reproduce the crash consistently, please open an issue on GitHub with a logcat trace if possible.
+
+    <Note>
+      Note that `config.developer` is currently set to `True` in the source (`definitions.rpy` contains `define config.developer = True  # FIXME: set to False b4 release`). This enables the developer overlay and additional debug output, which should not affect stability but may produce extra log noise.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Can I transfer my saves from the PC version of DDLC?">
+    Possibly, but it is **unsupported**. The Ren'Py save format is theoretically portable across platforms since save files are Python pickle objects. Both the PC and Android versions use the same save directory name, `DDLC-1454445547`, and the same game version (`1.1.0`).
+
+    To attempt a transfer:
+
+    1. Locate your PC save directory. On Windows it is typically at `%APPDATA%\RenPy\DDLC-1454445547\`.
+    2. Copy the save files (`.save`, `.rpgsave`, or numbered save files) to the Android save directory at `/sdcard/Android/data/ru.saber_nyan.ddlc/files/DDLC-1454445547/`.
+
+    This is not officially tested and may produce unexpected behavior, especially around persistent data (`.persistent`) which tracks meta-narrative state. If the game behaves strangely after a save transfer, delete all saves from the in-game menu (**Settings → Delete All Saves**) and start fresh.
+  </Accordion>
+
+  <Accordion title="What permissions does the app request? Why does it need them?">
+    The DDLC for Android APK requests **only one permission**:
+
+    | Permission | Reason |
+    |---|---|
+    | `VIBRATE` | Used for in-game haptic feedback effects during certain dramatic scenes |
+
+    The app does **not** request access to your camera, microphone, contacts, location, phone state, or any other sensitive permission. No expansion APK is used (`expansion: false` in `.android.json`), so there are no additional downloads after installation. The app is distributed outside the Play Store (`store: none`) and does not include any store-specific analytics or billing SDKs.
+  </Accordion>
+</AccordionGroup>

@@ -1,0 +1,73 @@
+{
+  "projectType": "general",
+  "projectName": "DDLC for Android",
+  "projectDescription": "An unofficial Android port of the visual novel \"Doki Doki Literature Club!\" built on the Ren'Py engine, packaging the full game as a native Android APK.",
+  "theme": "almond",
+  "primaryColor": "#225588",
+  "lightColor": "#774794",
+  "darkColor": "#332835",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "faq"
+            ]
+          },
+          {
+            "group": "Building from Source",
+            "pages": [
+              "building/overview",
+              "building/prerequisites",
+              "building/android-config",
+              "building/rapt"
+            ]
+          },
+          {
+            "group": "Port Internals",
+            "pages": [
+              "internals/renpy-android",
+              "internals/gui-fixes",
+              "internals/chr-files",
+              "internals/poem-game",
+              "internals/save-system"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "contributing/guidelines",
+              "contributing/known-issues"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Full DDLC game playable on Android devices",
+    "Landscape (sensorLandscape) orientation lock for proper aspect ratio",
+    "Fixed dialog box sizing for Android 1920x1080 screens",
+    "Fixed .chr file handling for the secret menu easter egg",
+    "Fixed poem minigame touch input",
+    "Autosave support with save-on-mobile-background enabled",
+    "Singleton instance guard to prevent multiple game processes",
+    "Custom keymap tweaks for touch screens (mouseup_3 hide-windows binding)",
+    "Built with Ren'Py Android Packaging Tools (RAPT)",
+    "APK distributed via GitHub Releases"
+  ],
+  "publicApiSurface": [
+    "APK download (GitHub Releases)",
+    ".android.json — Android build configuration (package, version, orientation, permissions)",
+    "game/options.rpy — Ren'Py config overrides (autosave, save directory, build archives)",
+    "game/definitions.rpy — Python helpers: delete_character(), restore_character(), restore_all_characters(), check_if_exist(), delete_all_saves()",
+    "game/gui.rpy — GUI constants (screen resolution 1280x720, textbox/namebox sizing)",
+    "game/python-packages/singleton.py — SingleInstance lock to prevent concurrent game processes",
+    "rapt/ — Ren'Py Android Packaging Tools templates and config"
+  ]
+}

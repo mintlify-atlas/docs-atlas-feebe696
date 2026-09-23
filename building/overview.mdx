@@ -1,0 +1,65 @@
+---
+title: "Build DDLC for Android from Source"
+sidebarTitle: "Overview"
+description: "Overview of the DDLC Android build process: extract game assets, apply port patches, configure RAPT, and compile an APK with the Ren'Py SDK."
+---
+
+This page explains how the unofficial DDLC Android port is assembled from scratch. The process takes the original PC release of Doki Doki Literature Club!, extracts its proprietary assets, layers in the Android-specific patches already present in this repository, and then compiles everything into a signed APK using Ren'Py's Android Packaging Tools (RAPT).
+
+<Warning>
+  The original DDLC game files — including all `.rpa` asset archives — are **not included in this repository** and must be obtained separately. You must own a legitimate copy of Doki Doki Literature Club! via [Steam](https://store.steampowered.com/app/698780/) or [itch.io](https://teamsalvato.itch.io/ddlc) before proceeding.
+</Warning>
+
+<Note>
+  This port is a work in progress. The repository's `game/definitions.rpy` currently sets `config.developer = True`, which enables the debug overlay and developer tooling at runtime. This flag **must** be set to `False` before producing a release build. All other patched scripts — poem game fixes, `.chr` file handling, dialog box sizing, and touch keymap remapping — are already committed to the `game/` directory.
+</Note>
+
+## How the build works
+
+The PC release of DDLC ships its assets inside `.rpa` archives and its scripts as compiled `.rpyc` bytecode. To port the game to Android, those assets must be extracted and the scripts decompiled and patched for touch/mobile compatibility. This repository already contains the patched, decompiled `.rpy` scripts; you only need to supply the original binary game assets.
+
+<Steps>
+  <Step title="Obtain the original DDLC PC game">
+    Download the official Doki Doki Literature Club! PC release from [Steam](https://store.steampowered.com/app/698780/) or [itch.io](https://teamsalvato.itch.io/ddlc). Note the install directory — it contains the `game/` folder with `.rpa` archives and `.rpyc` script files.
+  </Step>
+
+  <Step title="Extract .rpa archives with unrpa">
+    Use [unrpa](https://github.com/Lattyware/unrpa) to unpack the asset archives from the original game. This produces the raw image, audio, and font files that the port needs at build time.
+
+    ```bash
+    python -m unrpa -mp game/ path/to/original/game/images.rpa
+    python -m unrpa -mp game/ path/to/original/game/audio.rpa
+    python -m unrpa -mp game/ path/to/original/game/fonts.rpa
+    ```
+  </Step>
+
+  <Step title="Decompile .rpyc scripts with unrpyc (reference only)">
+    The decompiled and patched `.rpy` source scripts are already present in this repository's `game/` directory — you do **not** need to run this step unless you want to examine or re-decompile the originals. [unrpyc](https://github.com/CensoredUsername/unrpyc) was used during initial porting to convert the original `.rpyc` bytecode back into editable Ren'Py script.
+  </Step>
+
+  <Step title="Review the Android build configuration">
+    Inspect `.android.json` in the repository root to verify the package name (`ru.saber_nyan.ddlc`), version (`0.0.5`), orientation, and permissions are correct for your build. See the [Android Config](/building/android-config) page for a full field reference.
+  </Step>
+
+  <Step title="Set developer flag to False for release">
+    Open `game/definitions.rpy` and change `config.developer = True` to `config.developer = False`. Leaving this enabled ships a debug overlay and enables rollback, which are inappropriate for end users.
+  </Step>
+
+  <Step title="Build the APK with RAPT">
+    Use the Ren'Py Android Packaging Tools (bundled with the Ren'Py SDK) to compile and sign the APK. See the [RAPT Build](/building/rapt) page for detailed commands. The output archives — `scripts.rpa`, `images.rpa`, `audio.rpa`, and `fonts.rpa` — are bundled directly into the APK.
+  </Step>
+</Steps>
+
+## Where to go next
+
+<CardGroup cols={3}>
+  <Card title="Prerequisites" icon="list-check" href="/building/prerequisites">
+    Software, SDKs, and game files you need before starting.
+  </Card>
+  <Card title="Android Config" icon="gear" href="/building/android-config">
+    Full reference for `.android.json` and `options.rpy` build settings.
+  </Card>
+  <Card title="RAPT Build" icon="hammer" href="/building/rapt">
+    Step-by-step instructions for compiling the APK with RAPT.
+  </Card>
+</CardGroup>

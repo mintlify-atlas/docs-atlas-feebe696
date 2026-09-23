@@ -1,0 +1,88 @@
+---
+title: "Dialog Box and GUI Fixes for Android Screens"
+sidebarTitle: "GUI Fixes"
+description: "Details the textbox and namebox sizing corrections applied to make DDLC's dialog UI render correctly on Android 1920×1080 displays."
+---
+
+DDLC's dialog UI is built from two image-backed panels: the textbox (Tbox) that holds spoken dialogue at the bottom of the screen, and the namebox (Nbox) that floats above the left edge of the textbox to display the active character's name. Both panels have fixed pixel dimensions that were designed for a 1280×720 canvas. Scaling those dimensions correctly to a 1920×1080 Android display turned out to be non-trivial — and the reason why comes down to a quirk in how DDLC's official Android port handled display modes.
+
+## Root Cause: The "Big" Mode Problem
+
+Ren'Py supports a concept of display variants — `small`, `medium`, and `large` — that let games swap in higher-resolution UI assets when a device has a dense display. DDLC's official mobile build took a shortcut: it only shipped assets for the "Big" variant and never included a "Normal" variant fallback. When an Android screen reports a 1920×1080 resolution, Ren'Py selects the Big variant, looks for `textbox_Big.png` and similar assets, finds nothing, and silently falls through to the Normal variant image while still applying Big-mode layout calculations. The result is that the dialog boxes are sized for a 1920×1080 display but rendered using assets tuned for 1280×720.
+
+The sizing mismatch is documented precisely in `boxes_sizing.txt`:
+
+| Platform | Resolution | Tbox (w×h) | Nbox (w×h) | Notes |
+|---|---|---|---|---|
+| PC | 1280×720 | 816×146 | 168×39 | Baseline |
+| PC | 1920×1080 | 1224×219 | 252×58 | Correct scale-up |
+| Android | 1920×1080 | 1224×219 | 246×59 | Uses Big mode; no Big image exists |
+
+At 1920×1080 on Android the Tbox comes out at the correct scaled size (1224×219) but the Nbox diverges — 246×59 instead of the expected 252×58 — because the Big-mode layout constants apply a different multiplier path than the Normal-mode path that produced 168×39 on PC.
+
+## The Fix: Declaring Big as Normal
+
+Four solutions were considered:
+
+<CardGroup cols={2}>
+  <Card title="Declare Big as Normal ✓" icon="check">
+    Treat the Big mode declaration as the Normal mode and tune box dimensions to match. Chosen approach — preserves artwork and only requires numeric adjustments.
+  </Card>
+  <Card title="Resize Tbox images" icon="x">
+    Attempted and abandoned. Rescaling the textbox PNG at runtime introduced blurring artefacts on lower-density displays.
+  </Card>
+  <Card title="Rewrite the UI" icon="x">
+    A full reimplementation of the dialog screen would produce clean results but was out of scope for a compatibility port.
+  </Card>
+  <Card title="Use Ren'Py defaults" icon="x">
+    The built-in default textbox visually clashes with DDLC's pastel aesthetic and was rejected for presentation reasons.
+  </Card>
+</CardGroup>
+
+The chosen fix registers the Normal-mode dimensions to match what the Big-mode calculations expect, so the layout engine's output aligns with the available image assets.
+
+## Current gui.rpy Values
+
+The following constants in `gui.rpy` define the dialog box geometry as it ships in this port:
+
+```python
+define -2 gui.textbox_height = 182
+define -2 gui.textbox_yalign = 0.99
+
+define -2 gui.name_xpos = 350
+define -2 gui.name_ypos = -3
+define -2 gui.name_xalign = 0.5
+
+define -2 gui.namebox_width = 168
+define -2 gui.namebox_height = 39
+define -2 gui.namebox_borders = Borders(5, 5, 5, 2)
+define -2 gui.namebox_tile = False
+
+define -2 gui.text_xpos = 240
+define -2 gui.text_ypos = 43
+define -2 gui.text_width = 804
+define -2 gui.text_xalign = 0.0
+
+define -2 gui.text_size = 26
+define -2 gui.name_text_size = 26
+```
+
+`gui.textbox_height = 182` is the adjusted height that keeps the textbox visually balanced when the underlying `gui/textbox.png` asset is rendered at its native size. The namebox stays at 168×39 — identical to the PC baseline — because the available `gui/namebox.png` image was designed at that resolution and would appear stretched at the Big-mode dimensions of 252×58.
+
+`gui.textbox_yalign = 0.99` pins the bottom edge of the textbox just inside the bottom of the screen, matching DDLC's original presentation where the dialog panel appears to rest on the lower screen boundary.
+
+## Touch-Specific Quick Button Fix
+
+The quick-access menu bar at the bottom of the gameplay screen also required a border adjustment for touch targets. This is applied conditionally so it does not affect desktop or PC builds:
+
+```python
+init -2 python:
+    if renpy.variant("touch"):  # Quick buttons borders fix
+        gui.quick_button_borders = Borders(18, 7, 20, 0)
+```
+
+`Borders(18, 7, 20, 0)` expands the left inset to 18 px and the right inset to 20 px. On a capacitive touchscreen these wider borders ensure that each button in the row — History, Skip, Auto, Save, Load, Settings — has a tap area large enough to register reliably without accidentally activating an adjacent button.
+
+<Note>
+  The `init -2` priority on both the `gui.init(1280, 720)` call and the touch variant block ensures these values are established before any screen definition or style sheet is processed at `init -1` or later.
+</Note>

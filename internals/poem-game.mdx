@@ -1,0 +1,128 @@
+---
+title: "Poem Minigame Touch Input Fix"
+sidebarTitle: "Poem Game"
+description: "How the DDLC poem word-selection minigame was adapted for Android touch input, including the music_poem audio channel and poemgame style definitions."
+---
+
+Three times during DDLC's story the player composes a poem by selecting words from a scrollable list. Each of the four club members has weighted preferences for certain words, and the character whose preferred words appear most often in the finished poem reacts most warmly during the feedback scene. On PC, the player clicks through two columns of ten words each; the port had to make this same interaction work with finger taps on a mobile screen.
+
+## How the Poem Minigame Works
+
+The minigame is implemented in `script-poemgame.rpy`. Each run draws 20 words from a master word list, assigns each word point values for Sayori (`sPoint`), Natsuki (`nPoint`), and Yuri (`yPoint`), and presents them in two vertical columns of five via `ui.textbutton` calls:
+
+```python
+while True:
+    ystart = 160
+    pstring = str(progress)
+    ui.text(pstring + "/" + str(numWords),
+            style="poemgame_text", xpos=810, ypos=80, color='#000')
+
+    for j in range(2):
+        if j == 0: x = 440
+        else:      x = 680
+        ui.vbox()
+        for i in range(5):
+            word = random.choice(wordlist)
+            wordlist.remove(word)
+            ui.textbutton(word.word,
+                          clicked=ui.returns(word),
+                          text_style="poemgame_text",
+                          xpos=x,
+                          ypos=i * 56 + ystart)
+        ui.close()
+
+    t = ui.interact()
+```
+
+`ui.interact()` blocks until the player taps a word, which fires the `clicked=ui.returns(word)` callback and returns the chosen `PoemWord` object. On Android, Ren'Py maps touch-down-and-release events to the same `clicked` callback as a mouse click, so the core selection loop required no modification. Each word is spaced 56 virtual pixels apart vertically starting at `ystart=160`, giving comfortable tap targets at the default 1280×720 layout.
+
+## Scoring
+
+Words are scored against per-character thresholds defined in `script-poemgame.rpy`:
+
+```python
+POEM_DISLIKE_THRESHOLD = 29
+POEM_LIKE_THRESHOLD    = 45
+```
+
+After all 20 words are chosen, `sPointTotal`, `nPointTotal`, and `yPointTotal` are compared against these constants to determine who liked the poem.
+
+## Audio: The music\_poem Channel
+
+The poem minigame requires its own looping background track that must remain tightly synchronised with the word-selection UI — pausing and resuming without the fade-out that Ren'Py's standard music channel applies. A dedicated channel is registered in `definitions.rpy`:
+
+```python
+renpy.music.register_channel("music_poem", mixer="music", tight=True)
+```
+
+`mixer="music"` routes the channel through the player's music volume preference. `tight=True` suppresses the end-of-track crossfade, so the poem music cuts cleanly the instant the minigame ends without bleeding into the next scene's audio.
+
+## Style Definitions
+
+### poemgame\_text
+
+The word labels and progress counter both use the `poemgame_text` style defined in `screens.rpy`:
+
+```python
+init -1 style poemgame_text:
+    yalign 0.5
+    font "gui/font/Halogen.ttf"
+    size 30
+    color "#000"
+    outlines []
+
+    hover_xoffset -3
+    hover_outlines [(3, "#fef", 0, 0), (2, "#fcf", 0, 0), (1, "#faf", 0, 0)]
+```
+
+`Halogen.ttf` is the handwritten-style font DDLC uses throughout its notebook and poem UI. `size 30` renders the words clearly at the 1280×720 virtual resolution. On hover (or touch-down on Android), the word shifts 3 px to the left (`hover_xoffset -3`) and gains layered pink-tone outlines — a subtle highlight that confirms which word is about to be selected.
+
+### Scrollbar and Bar Styles
+
+The `bar` and `scrollbar` styles in `screens.rpy` are repurposed for the poem UI's scroll area, using the dedicated poemgame graphic assets:
+
+```python
+init -1 style bar:
+    ysize 18
+    base_bar Frame("gui/scrollbar/horizontal_poem_bar.png", tile=False)
+    thumb    Frame("gui/scrollbar/horizontal_poem_thumb.png",
+                   top=6, right=6, tile=True)
+
+init -1 style scrollbar:
+    ysize 18
+    base_bar Frame("gui/scrollbar/horizontal_poem_bar.png", tile=False)
+    thumb    Frame("gui/scrollbar/horizontal_poem_thumb.png",
+                   top=6, right=6, tile=True)
+    unscrollable "hide"
+    bar_invert   True
+```
+
+`unscrollable "hide"` removes the scrollbar entirely when the content fits on screen — preventing a visual artefact where an empty scroll indicator appears during short poem sequences. `bar_invert True` reverses the scroll direction to match the expected swipe-up gesture on Android.
+
+## Text Replacement
+
+`options.rpy` registers a `config.replace_text` hook that normalises typography in poem text before it is rendered:
+
+```python
+def replace_text(s):
+    s = s.replace('--', u'\u2014')
+    s = s.replace(' - ', u'\u2014')
+    return s
+config.replace_text = replace_text
+```
+
+The double-hyphen (`--`) and spaced single-hyphen (` - `) sequences that appear in some poem word strings are converted to proper em-dashes (—). This prevents typographic inconsistencies when word text is displayed inside the poem result screens.
+
+## GUI Assets
+
+All visual assets specific to the poem minigame live under `game/gui/poemgame/`. This directory contains:
+
+- `s_sticker_1.png`, `s_sticker_2.png` — Sayori reaction stickers
+- `n_sticker_1.png`, `n_sticker_2.png` — Natsuki reaction stickers
+- `y_sticker_1.png`, `y_sticker_2.png`, `y_sticker_cut_1.png`, `y_sticker_cut_2.png`, `y_sticker_2g.png` — Yuri reaction stickers and variants
+- `m_sticker_1.png`, `m_sticker_2.png` — Monika reaction stickers
+- `y_sticker_1_broken.png` — special glitch-state asset
+
+<Note>
+  The poem minigame caches its word selection state in local Python variables, not in Ren'Py's save system. If the app is closed mid-minigame and the save slot was written before the minigame started, reloading that save will restart the entire poem selection sequence from the beginning with a freshly shuffled word list.
+</Note>

@@ -1,0 +1,117 @@
+---
+title: "Known Issues and Remaining Work in DDLC Android"
+sidebarTitle: "Known Issues"
+description: "Tracked bugs, pending fixes, and outstanding TODO items in the DDLC Android port, including the release build checklist and dialog box edge cases."
+---
+
+DDLC for Android currently ships as a test build. Several completed milestones — extracting and decompiling the game assets with [unrpa](https://github.com/Lattyware/unrpa) and [unrpyc](https://github.com/CensoredUsername/unrpyc), fixing the poem minigame, resolving `.chr` file handling, and addressing the dialog box sizing bug — are already done. What remains before a release build can be produced is documented on this page.
+
+<Tip>
+  Watch the [GitHub Issues tracker](https://github.com/saber-nyan/ddlc-android/issues) for live status on open bugs. The TODO list below reflects the state of the `main` branch README; individual issues may be resolved faster than this page is updated.
+</Tip>
+
+## Release Build Checklist
+
+The following items from the project README must be completed before a release build is produced:
+
+- [ ] Resolve all open GitHub Issues
+- [ ] Complete a full playthrough of the VN to catch remaining bugs and crashes
+- [ ] Produce the release build (currently only test builds exist)
+
+<Note>
+  The items above are sequential in practice. Bugs caught during a full playthrough are likely to generate new issues, so the playthrough should happen before the issue tracker is considered clear.
+</Note>
+
+## Developer Mode Active
+
+<Warning>
+  `config.developer` is currently set to `True` in `game/definitions.rpy`. This value **must** be changed to `False` before any release build is distributed.
+
+  ```python
+  # game/definitions.rpy
+  define config.developer = True  # FIXME: set to False b4 release
+  ```
+
+  While `config.developer = True`, the debug overlay added by `widget__info()` (defined in `game/options.rpy`) is active. It renders the current script filename and line number at the top-right of the screen, and the current screen name and its source location at the top-center, using Ren'Py's `config.overlay_functions` hook:
+
+  ```python
+  # game/options.rpy
+  ## TO!DONE: thank you, lolbot! Displays current script:line and screen, file:line
+  python early:
+      def widget__info():
+          import os
+          def editoverlay():
+              fullfn, line = renpy.get_filename_line()
+              ui.button(clicked=None, xpos=1.0, xanchor=1.0, ypos=2, xpadding=0, xminimum=200)
+              ui.text(u"%s:%d" % (os.path.basename(fullfn), line), size=16)
+              ...
+          config.overlay_functions.append(editoverlay)
+  init 9000 python:
+      if config.developer:
+          widget__info()
+  ```
+
+  The overlay is harmless for testing but is visible to end users and must not appear in a public release.
+</Warning>
+
+## Rollback Disabled for Non-Developer Builds
+
+Rollback (the ability to scroll back through dialogue) is tied directly to the developer flag:
+
+```python
+# game/options.rpy
+define config.rollback_enabled = config.developer
+```
+
+This means rollback is currently **enabled** in all test builds (because `config.developer = True`), but will be **disabled** in the release build once `config.developer` is set to `False`. This is intentional — the original DDLC disables rollback to preserve narrative integrity — but it is worth confirming this behaviour is correct on Android before release.
+
+## Dialog Box (GUI) Sizing Issues
+
+The dialog box rendering was identified as a source of visual glitches across different Android screen resolutions. The root cause is documented in `boxes_sizing.txt`: the port uses a "Big" display mode at 1920×1080, but no dedicated "Big mode" dialog box images exist. The engine falls back to Normal mode images, producing a size mismatch.
+
+The measured dimensions from `boxes_sizing.txt` illustrate the discrepancy:
+
+| Platform | Resolution | Text box (Tbox) | Name box (Nbox) |
+|----------|------------|-----------------|-----------------|
+| PC (Normal / 1280×720) | 1280×720 | 816 × 146 | 168 × 39 |
+| PC (Big / 1920×1080) | 1920×1080 | 1224 × 219 | 252 × 58 |
+| Android (1920×1080) | 1920×1080 | 1224 × 219 (Big) | 246 × 59 (Small) |
+
+The Android port activates Big mode at 1080p (matching the official Android build's behaviour), but the images supplied are from Normal mode. This causes the dialog box to render incorrectly on some devices.
+
+Possible mitigations that were evaluated:
+
+- Declare Big mode as Normal mode and adjust images accordingly — viable, but glitch-prone.
+- Resize the Tbox image directly — attempted and confirmed not to work.
+- Rebuild the UI layout in that area — not yet done.
+- Use the Ren'Py default dialog box — works but looks out of place with the game's visual style.
+
+For more detail on the fix approach, see [internals/gui-fixes](/internals/gui-fixes).
+
+<Note>
+  The dialog box fix is marked as completed (`[x] Fix dialogbox`) in the README, meaning the current test build is better than before. However, edge cases on non-1080p screens may still produce mismatched box sizes depending on how Ren'Py selects the display mode at runtime.
+</Note>
+
+## Autosave Frequency
+
+```python
+# game/options.rpy
+config.autosave_frequency = 10  # FIX!ME: lagging? Nope.
+```
+
+`config.autosave_frequency = 10` causes the game to autosave every 10 interactions. This was investigated as a potential source of lag on Android (hence the `FIX!ME` annotation), but the investigation confirmed it is **not** causing performance issues. The value and comment are retained as a record of that investigation. The autosave system itself is enabled via `config.has_autosave = True` and also saves on quit (`config.autosave_on_quit = True`) and on mobile background (`config.save_on_mobile_background = True`).
+
+## Gamepad / Pad Input Disabled
+
+Gamepad support is explicitly disabled at startup:
+
+```python
+# game/options.rpy
+renpy.game.preferences.pad_enabled = False
+```
+
+This is intentional for the Android port. No gamepad support is planned.
+
+## Russian Translation Not Merged
+
+A Russian translation port exists on the [`ru-translation`](https://github.com/saber-nyan/ddlc-android/tree/ru-translation) branch, based on the fan translation by SUN-TEAM. It has not been merged into `main`. Issues specific to the Russian translation should be filed against that branch; see [Contributing Guidelines](/contributing/guidelines) for branch details.

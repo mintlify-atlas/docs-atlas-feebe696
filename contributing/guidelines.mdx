@@ -1,0 +1,120 @@
+---
+title: "Contributing to DDLC for Android"
+sidebarTitle: "Guidelines"
+description: "How to report bugs, submit pull requests, and contribute fixes to the DDLC Android port — including code style, branch structure, and what not to submit."
+---
+
+DDLC for Android is an ongoing, community-driven fan port of Doki Doki Literature Club! built on top of Ren'Py. The project is actively work-in-progress: a test build exists, but several open issues and a full VN playthrough remain before a release build can be produced. Bug reports, fixes, and other contributions are welcomed through GitHub Issues and pull requests.
+
+<Warning>
+  This repository contains spoilers for Doki Doki Literature Club! — including in file names, script labels, and asset paths. Read the full game before browsing the source if you want to avoid spoilers. **Do not include spoilers in GitHub Issue titles**, as they are publicly visible in the issue tracker without clicking through.
+</Warning>
+
+## Reporting Bugs
+
+Before opening a new issue, check the FAQ. Many common problems — including APK installation failures and save-file questions — are already answered there.
+
+- **English FAQ:** https://github.com/saber-nyan/ddlc-android/wiki/FAQ-EN
+- **Russian FAQ:** https://github.com/saber-nyan/ddlc-android/wiki/FAQ-RU
+
+<Note>
+  The game's codebase contains intentional glitches, corrupted-looking assets, and disturbing imagery that are part of the story. Do not report these as bugs unless you can confirm they are rendering incorrectly compared to the PC original.
+</Note>
+
+<Steps>
+  <Step title="Check open issues and the FAQ">
+    Search [existing issues](https://github.com/saber-nyan/ddlc-android/issues) and the FAQ linked above before filing. Duplicate reports slow triage.
+  </Step>
+  <Step title="Gather device information">
+    Include the following in your report:
+    - Device model (e.g. Samsung Galaxy A52)
+    - Android version (e.g. Android 12)
+    - Whether you are using the latest APK from the [releases page](https://github.com/saber-nyan/ddlc-android/releases/latest)
+  </Step>
+  <Step title="Describe the steps to reproduce">
+    Be specific about which scene or menu triggered the issue. If the bug involves a crash, include the logcat output if possible. Avoid spoilers in the issue title — use a neutral description like "crash during Act 2 transition" rather than naming characters or events directly.
+  </Step>
+  <Step title="Open a GitHub Issue">
+    File the report at https://github.com/saber-nyan/ddlc-android/issues with the information collected above.
+  </Step>
+</Steps>
+
+## Submitting a Pull Request
+
+Pull requests are accepted for bug fixes, compatibility improvements, and translation work. The `.chr` fix contributed by [@AlexAzumi](https://github.com/AlexAzumi) in [PR #16](https://github.com/saber-nyan/ddlc-android/pull/16) is a good example of the kind of targeted, well-scoped contribution that is easy to review and merge.
+
+<Steps>
+  <Step title="Fork the repository">
+    Fork [saber-nyan/ddlc-android](https://github.com/saber-nyan/ddlc-android) and clone your fork locally.
+  </Step>
+  <Step title="Create a feature branch">
+    Branch off `main` for English port fixes. If your work relates to the Russian translation, base your branch on `ru-translation` instead.
+
+    ```bash
+    git checkout -b fix/dialog-box-big-mode
+    ```
+  </Step>
+  <Step title="Make your changes">
+    Follow the code style notes below. Keep commits focused — one logical fix per commit makes review faster.
+  </Step>
+  <Step title="Reference related issues">
+    In your PR description, reference any relevant issue numbers using GitHub's `Fixes #N` or `See #N` syntax so the issue tracker stays linked to the change.
+  </Step>
+  <Step title="Open the pull request">
+    Push your branch and open a PR against `main` (or `ru-translation` if applicable). Describe what the problem was, what you changed, and how you tested it.
+  </Step>
+</Steps>
+
+## Code Style Notes
+
+The project is written in Ren'Py script (`.rpy`) with embedded Python. A few conventions are in use throughout the codebase:
+
+**File layout**
+
+- Game logic and character definitions live in `game/definitions.rpy`.
+- Engine configuration, build rules, and overlay helpers live in `game/options.rpy`.
+- Python utility packages go under `game/python-packages/`.
+
+**Comment markers**
+
+The codebase uses two non-standard comment styles to track status:
+
+| Marker | Meaning |
+|--------|---------|
+| `TO!DONE:` | Task that was investigated and resolved. Keep these in place as a record. Example: `# TO!DONE: character fix!` on `delete_character` and `restore_character` in `definitions.rpy`. |
+| `FIX!ME:` / `FIXME:` | Active issue that still needs attention. Example: `define config.developer = True  # FIXME: set to False b4 release` in `definitions.rpy`. |
+
+**Python in Ren'Py**
+
+Use `init python:` blocks for code that must run at startup. Helper functions that operate on persistent data — such as `delete_character(name)`, `restore_character(name)`, and `delete_all_saves()` — belong in `game/definitions.rpy` alongside the rest of the game state setup.
+
+```python
+# Example from game/definitions.rpy
+def delete_character(name):  # TO!DONE: character fix!
+    setattr(persistent, name, "deleted")
+    renpy.save_persistent()
+
+def restore_character(name):  # TO!DONE: character fix!
+    setattr(persistent, name, "restored")
+```
+
+**Ren'Py script naming**
+
+All Ren'Py source files use the `.rpy` extension. Compiled `.rpyc` files are excluded from the repository and generated at build time (`build.classify('**.rpy', None)` in `options.rpy` strips sources from distribution archives).
+
+## Branch Structure
+
+<CardGroup cols={2}>
+  <Card title="main" icon="code-branch">
+    The English-language Android port. This is the default branch and the target for most bug-fix PRs.
+  </Card>
+  <Card title="ru-translation" icon="language">
+    The in-progress Russian translation port, based on a fan translation by SUN-TEAM. Not yet merged into `main`. Translation-specific fixes should target this branch.
+  </Card>
+</CardGroup>
+
+## Legal Note
+
+<Warning>
+  DDLC for Android is a fan project. The license of the original Doki Doki Literature Club! game is not specified by Team Salvato, but Team Salvato's [IP guidelines](http://teamsalvato.com/ip-guidelines/) (see the "Fan Games" section) state that they are against porting the game to other platforms. By contributing, you acknowledge that this project exists in a legally ambiguous space. Do not submit contributions that include assets ripped from other Team Salvato titles or that violate the spirit of their guidelines beyond what the port already involves.
+</Warning>

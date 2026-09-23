@@ -1,0 +1,65 @@
+---
+title: "DDLC for Android: Unofficial Ren'Py Port Overview"
+sidebarTitle: "Introduction"
+description: "Learn what DDLC for Android is, how it ports Doki Doki Literature Club! to Android using Ren'Py, and what fixes were applied to make it playable on mobile."
+---
+
+DDLC for Android is an unofficial, community-driven attempt to bring *Doki Doki Literature Club!* (game version `1.1.0`, build name `DDLC`) to Android devices. The port is built entirely on top of Ren'Py's standard Android packaging pipeline — [RAPT (Ren'Py Android Packaging Tools)](https://www.renpy.org/doc/html/android.html) — and was made possible by first extracting the original game's assets with [unrpa](https://github.com/Lattyware/unrpa) and decompiling its scripts with [unrpyc](https://github.com/CensoredUsername/unrpyc). The resulting APK carries the package identifier `ru.saber_nyan.ddlc`, targets Android API level 14 (Android 4.0 Ice Cream Sandwich) and above, and runs in `sensorLandscape` orientation to match the original game's widescreen aspect ratio. Currently only the English version of the game is available in the main branch.
+
+<Warning>
+  **Spoiler warning.** This repository — including file names, asset names, and save-directory names — contains spoilers for *Doki Doki Literature Club!*. If you have not finished the game, proceed with caution.
+
+  **Legal notice.** The license of the original game is not explicitly stated, but Team Salvato is [publicly against](http://teamsalvato.com/ip-guidelines/) porting *DDLC* to platforms other than those it was officially released on (see the "Fan Games" section of their IP guidelines). By using this port you accept full responsibility for any implications that may arise.
+</Warning>
+
+## Project Status
+
+This is a **work-in-progress** project. A functional test build is already available for download, but a polished release build has not yet been produced. The current state of the TODO list, taken directly from the repository, is:
+
+| Task | Status |
+|---|---|
+| Extract and decompile game assets | ✅ Done |
+| Fix poem minigame | ✅ Done |
+| Fix `.chr` character files (interactive main menu) | ✅ Done |
+| Fix dialog box sizing | ✅ Done |
+| Produce a test build | ✅ Done |
+| Resolve all open Issues | ⏳ In progress |
+| Complete a full playthrough to catch remaining bugs | ⏳ Pending |
+| Produce a release build | ⏳ Pending |
+
+<Note>
+  Because this is a test build and a full playthrough has not yet been verified, you may encounter crashes or visual glitches at points in the story that have not been tested yet. Please report any issues you find on the [GitHub issue tracker](https://github.com/saber-nyan/ddlc-android/issues).
+</Note>
+
+## What Was Fixed
+
+Porting a Ren'Py visual novel to Android is not a simple recompile. Several game-specific systems required targeted patches to work correctly on a touchscreen device:
+
+**Poem minigame.** The in-game poem-writing minigame relies on mouse and keyboard input that does not translate directly to Android touch events. The port includes fixes to make this minigame playable on mobile.
+
+**`.chr` character files.** DDLC uses specially named `.chr` files to drive certain meta narrative elements, including the interactive main menu. These were broken in the initial extraction and were fixed with contributions from the community (see [PR #16](https://github.com/saber-nyan/ddlc-android/pull/16), thanks to [@AlexAzumi](https://github.com/AlexAzumi)).
+
+**Dialog box sizing.** The original game's dialog boxes have fixed pixel dimensions tuned for a 1280×720 desktop display. On Android the rendered viewport size varies by device, causing text to be clipped or boxes to overflow. The port includes corrected sizing logic derived from analysis of the root causes documented in `boxes_sizing.txt`.
+
+## Languages
+
+The main branch of this repository contains the **English** version of the game. A separate `ru-translation` branch is being prepared to incorporate a Russian-language fan translation produced by [SUN-TEAM](https://vk.com/wall-101862768_5388). That branch is not yet merged and is maintained independently.
+
+## Where to Go Next
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation"
+    icon="mobile"
+    href="/installation"
+  >
+    Download the latest test APK and install it on any Android 4.0+ device in a few steps.
+  </Card>
+  <Card
+    title="Building from Source"
+    icon="hammer"
+    href="/building"
+  >
+    Learn how to clone the repository, set up Ren'Py and RAPT, and compile your own APK from source.
+  </Card>
+</CardGroup>

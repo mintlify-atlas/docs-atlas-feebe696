@@ -1,0 +1,85 @@
+---
+title: "Install DDLC for Android on Your Device"
+sidebarTitle: "Installation"
+description: "Step-by-step guide to downloading and installing the DDLC Android APK on any Android 4.0+ device, including enabling unknown sources."
+---
+
+Installing DDLC for Android is straightforward: download the APK from GitHub Releases, allow your device to install apps from outside the Play Store, and tap to install. The port targets **Android API level 14 (Android 4.0 Ice Cream Sandwich)** and higher, so it should run on the vast majority of Android devices still in circulation. Because the game runs in `sensorLandscape` orientation — meaning it follows your device's physical rotation sensor and locks to whichever landscape direction your device is currently held — your device must have a working accelerometer and auto-rotate enabled.
+
+<Note>
+  The current APK is a **test build** (version `0.0.5`, numeric version `5`). A full-playthrough-verified release build has not yet been published. You may encounter bugs in story sections that have not been fully tested. Check the [GitHub releases page](https://github.com/saber-nyan/ddlc-android/releases/latest) for the most up-to-date build.
+</Note>
+
+<Warning>
+  **Spoiler warning.** Even the save-directory name (`DDLC-1454445547`) and certain asset file names visible during installation or in a file manager may contain spoilers for *Doki Doki Literature Club!*. If you have not yet finished the game on another platform, be cautious when browsing app storage.
+
+  **Legal disclaimer.** This is an unofficial fan port. Team Salvato, the developer of the original game, is [against porting DDLC to other platforms](http://teamsalvato.com/ip-guidelines/). Install and play at your own discretion.
+</Warning>
+
+## Requirements
+
+Before you begin, confirm that your device meets the following requirements:
+
+- **Android version:** 4.0 (API level 14) or higher
+- **Architecture:** ARM or x86 (standard Ren'Py RAPT builds target both)
+- **Orientation:** Auto-rotate must be enabled; the game uses `sensorLandscape` and will appear sideways or refuse to rotate if auto-rotate is locked
+- **Storage:** Sufficient free space for the APK itself plus the `DDLC-1454445547` save directory that Ren'Py creates on first launch
+- **Permissions:** The app requests only the `VIBRATE` permission, used for in-game haptic feedback effects
+
+## Installation Steps
+
+<Steps>
+  <Step title="Enable installation from unknown sources">
+    Android blocks APK installation from outside the Play Store by default. You need to allow it before proceeding.
+
+    - **Android 8.0 and later:** When you tap the APK file, Android will prompt you to allow the specific app (usually your browser or file manager) to install unknown apps. Tap **Settings**, toggle **Allow from this source**, then go back and proceed.
+    - **Android 7.x and earlier:** Go to **Settings → Security** (or **Settings → Applications** on some devices), find the **Unknown sources** toggle, enable it, and confirm the warning dialog.
+
+    <Warning>
+      Enabling unknown sources allows any APK you download — not just this one — to be installed. Only install APKs from sources you trust. You can re-disable this setting after installation is complete.
+    </Warning>
+  </Step>
+
+  <Step title="Download the APK">
+    Open your device's browser and navigate to the latest release:
+
+    ```
+    https://github.com/saber-nyan/ddlc-android/releases/latest
+    ```
+
+    Tap the `.apk` asset listed under **Assets** to begin the download. Your browser will save it to your device's **Downloads** folder.
+
+    <Note>
+      The current release is version **0.0.5** (package `ru.saber_nyan.ddlc`). Always download from the official GitHub releases page to ensure you have the most recent test build.
+    </Note>
+  </Step>
+
+  <Step title="Open and install the APK">
+    Once the download is complete:
+
+    1. Open your device's **file manager** and navigate to the **Downloads** folder (or tap the notification that appeared when the download finished).
+    2. Tap the `.apk` file. Android's package installer will open.
+    3. Review the permissions listed — the app requests only **VIBRATE** — then tap **Install**.
+    4. Wait for the installation to complete. This typically takes a few seconds.
+  </Step>
+
+  <Step title="Launch the game">
+    Find **DDLC!** in your app drawer or on your home screen and tap it to launch. On first launch, Ren'Py will create the save directory at:
+
+    ```
+    /sdcard/Android/data/ru.saber_nyan.ddlc/files/DDLC-1454445547/
+    ```
+
+    The game will rotate to landscape orientation automatically. If it appears portrait or squished, check that **auto-rotate** is enabled in your device's quick settings.
+  </Step>
+</Steps>
+
+## Notes on Behavior
+
+**Orientation.** The game is locked to `sensorLandscape`, meaning it will display in whichever physical landscape direction your device prefers (0° or 180°). It will never display in portrait mode, regardless of how you hold your device.
+
+**VIBRATE permission.** The single `VIBRATE` permission Android shows during installation is used only for in-game haptic effects (such as certain dramatic scenes). The app does not request access to your contacts, camera, microphone, or location.
+
+**Save files.** Ren'Py stores all save data — including the 8 autosave slots, persistent data, and manual saves — inside the `DDLC-1454445547` directory. The game is configured with `config.autosave_on_quit = True` and `config.save_on_mobile_background = True`, which means a save is written automatically when you switch away from the app or close it. You do not need to manually save before exiting.
+
+**Singleton lock.** The game uses a process singleton lock at startup. If a previous instance crashed and left a stale lock file, the game may refuse to open. If this happens, force-stop the app from **Settings → Apps → DDLC!** and try again.

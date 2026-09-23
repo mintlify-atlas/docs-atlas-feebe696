@@ -1,0 +1,144 @@
+---
+title: "Building the APK with RAPT"
+sidebarTitle: "RAPT Build"
+description: "Step-by-step instructions for using Ren'Py Android Packaging Tools (RAPT) to compile the DDLC Android APK from the patched source."
+---
+
+RAPT (Ren'Py Android Packaging Tools) is the official toolchain for compiling Ren'Py projects into Android APKs. It is bundled directly with the Ren'Py SDK under the `rapt/` directory and drives the entire Android build pipeline — from invoking the Android SDK's `gradle` wrapper to signing the output APK. This page walks through every step needed to go from a freshly cloned repository to a working `.apk` file.
+
+<Warning>
+  Before building for release, you **must** set `config.developer = False` in `game/definitions.rpy`. The current repository default is `True`, which ships a visible debug overlay showing the current script file and line number. Leaving it enabled in a release build is a bug — not a minor one.
+</Warning>
+
+## Build steps
+
+<Steps>
+  <Step title="Clone this repository into your Ren'Py projects directory">
+    Place the cloned repository where the Ren'Py launcher can find it — typically as a sibling directory to the Ren'Py SDK, or directly inside your Ren'Py projects folder.
+
+    ```bash
+    git clone https://github.com/saber-nyan/ddlc-android.git
+    cd ddlc-android
+    ```
+
+    The top-level layout should be:
+    ```
+    renpy-sdk/
+    ddlc-android/       ← this repo
+      .android.json
+      game/
+      rapt/
+    ```
+  </Step>
+
+  <Step title="Copy original game assets into game/">
+    Extract the original DDLC PC game's `.rpa` archives into the `game/` directory using [unrpa](https://github.com/Lattyware/unrpa). You need the images, audio, and fonts — the patched scripts are already in the repo.
+
+    ```bash
+    # Extract from the original PC game's archives
+    python -m unrpa -mp game/ /path/to/original/ddlc/game/images.rpa
+    python -m unrpa -mp game/ /path/to/original/ddlc/game/audio.rpa
+    python -m unrpa -mp game/ /path/to/original/ddlc/game/fonts.rpa
+    ```
+
+    After extraction, `game/` should contain subdirectories such as `bg/`, `bgm/`, `gui/`, `sfx/`, `sayori/`, `monika/`, `natsuki/`, `yuri/`, and their associated image and audio files.
+  </Step>
+
+  <Step title="Review .android.json">
+    Open `.android.json` in the repository root and confirm the settings match your intended build target. Key fields to check:
+
+    - `"package"`: `"ru.saber_nyan.ddlc"` — change this if you are building a fork with a different identity
+    - `"version"`: `"0.0.5"` and `"numeric_version"`: `"5"` — increment for new releases
+    - `"target_version"`: `14` — Android 4.0 minimum API level
+
+    See [Android Config](/building/android-config) for a full description of every field.
+  </Step>
+
+  <Step title="Set config.developer = False for release builds">
+    Edit `game/definitions.rpy` and change the developer flag:
+
+    ```python
+    # Before (default in repo):
+    define config.developer = True  # FIXME: set to False b4 release
+
+    # After (required for release):
+    define config.developer = False
+    ```
+
+    This disables the debug overlay widget, disables rollback (`config.rollback_enabled` is bound to this flag in `options.rpy`), and removes other developer-only runtime behaviour.
+  </Step>
+
+  <Step title="Install the Android SDK via RAPT">
+    From the Ren'Py SDK directory, run the RAPT installer script to download the Android SDK, NDK, and all required build tools. This only needs to be done once per machine.
+
+    ```bash
+    cd /path/to/renpy-sdk
+    python rapt/android.py installsdk
+    ```
+
+    RAPT will prompt you to accept the Android SDK license agreements. Follow the on-screen instructions. The downloaded SDK components are stored inside `rapt/Sdk/` within the Ren'Py SDK directory.
+  </Step>
+
+  <Step title="Build the APK">
+    Run the RAPT build command, pointing it at the `ddlc-android` project directory. Use `release` for a signed release build or `debug` for an unsigned debug build.
+
+    ```bash
+    # From the Ren'Py SDK directory:
+    python rapt/android.py build /path/to/ddlc-android release
+
+    # Or for a debug build:
+    python rapt/android.py build /path/to/ddlc-android debug
+    ```
+
+    Alternatively, open the Ren'Py launcher GUI, select the `ddlc-android` project, and use the **Build Distributions** option followed by the **Android** target.
+
+    During the build, RAPT will:
+    1. Run `options.rpy` classify rules to pack `scripts.rpa`, `images.rpa`, `audio.rpa`, and `fonts.rpa`
+    2. Copy the archives and the Ren'Py Android runtime into a Gradle project
+    3. Invoke Gradle to compile the Java/Kotlin wrapper and produce a `.apk`
+    4. Sign the APK with your keystore (release) or a debug key (debug)
+  </Step>
+
+  <Step title="Locate the output APK">
+    After a successful build, the `.apk` file is written to the `bin/` directory inside the project:
+
+    ```
+    ddlc-android/
+      bin/
+        DDLC-0.0.5-release.apk   ← release build
+        DDLC-0.0.5-debug.apk     ← debug build
+    ```
+
+    You can install the APK directly to a connected device using `adb`:
+
+    ```bash
+    adb install bin/DDLC-0.0.5-release.apk
+    ```
+  </Step>
+</Steps>
+
+## Customising app icon and presplash
+
+The `rapt/templates/` directory contains two image assets that RAPT uses during the build:
+
+- **`rapt/templates/renpy-icon.png`** — the Android launcher icon template. Replace this with a 512×512 PNG of your custom icon before building to change the app icon on the home screen. The icon label on the launcher is controlled by `"icon_name": "DDLC!"` in `.android.json`.
+- **`rapt/templates/renpy-presplash.jpg`** — the presplash (loading screen) image displayed while the Ren'Py runtime initialises. Replace with a JPEG at your target device resolution to customise the startup screen.
+
+<Tip>
+  If you replace `renpy-icon.png`, ensure the image has a transparent background and adequate padding around the artwork so the icon renders correctly across different Android launcher icon shapes (circle, squircle, etc.).
+</Tip>
+
+## Build archive structure
+
+The `options.rpy` classify rules produce four `.rpa` archives bundled into the APK:
+
+| Archive | Contents |
+|---------|----------|
+| `scripts.rpa` | `.rpyc`, `.txt`, `.chr` files |
+| `images.rpa` | `.jpg`, `.png` files |
+| `audio.rpa` | `.wav`, `.mp3`, `.ogg` files |
+| `fonts.rpa` | `.ttf` files |
+
+<Note>
+  `.rpy` source files, `.psd` files, editor project files (`.sublime-project`, `.sublime-workspace`), backup files (`**.bak`, `**~`), hidden files (`**/.**`), and the `game/cache/` directory are all excluded from the APK. The raw source scripts never ship to end users.
+</Note>

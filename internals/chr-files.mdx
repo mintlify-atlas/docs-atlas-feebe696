@@ -1,0 +1,101 @@
+---
+title: "How .chr Files Work in the Android Port"
+sidebarTitle: ".chr Files"
+description: "Explains the role of .chr character files in DDLC's secret menu, why they broke on Android, and how the fix was implemented by contributor AlexAzumi."
+---
+
+<Warning>
+  **Spoiler warning.** This page discusses `.chr` files, which are central to DDLC's story. The existence of these files, what they do, and how the port manages them are all major narrative spoilers. Do not read further if you have not completed the game.
+</Warning>
+
+DDLC ships four files — `monika.chr`, `natsuki.chr`, `yuri.chr`, and `sayori.chr` — that the game reads from disk at runtime to determine which characters are currently "present" in the story. Deleting or manipulating these files outside the game is part of DDLC's meta-narrative design, and the game provides an in-game **Characters** menu (accessible from the main navigation after reaching a certain point in the story) that lets players manage character state without touching the filesystem directly.
+
+## Why .chr Files Broke on Android
+
+On a PC, Ren'Py can locate `game/*.chr` by constructing an absolute path from the game directory. On Android, the game's assets are packaged inside an APK and extracted to an internal storage location at runtime. The file path that worked on Windows — a plain relative path like `"characters/monika.chr"` — resolves differently inside the Android sandbox, causing the game to silently treat all characters as absent.
+
+The fix was contributed by [@AlexAzumi](https://github.com/AlexAzumi) in [pull request #16](https://github.com/saber-nyan/ddlc-android/pull/16). The solution has two parts: bundling the `.chr` files into a named archive so Ren'Py can find them through its virtual filesystem, and replacing raw filesystem access with persistent variable state that survives across sessions.
+
+## Build Classification
+
+In `options.rpy`, `.chr` files are explicitly placed into the `scripts` archive alongside compiled `.rpyc` bytecode:
+
+```python
+build.archive("scripts", "all")
+
+build.classify("game/**.rpyc", "scripts")
+build.classify("game/**.txt",  "scripts")
+build.classify("game/**.chr",  "scripts")
+```
+
+The `game/**.chr` glob ensures every `.chr` file in any subdirectory of `game/` ends up in the `scripts.rpa` archive included in the APK. Ren'Py's archive loader can then resolve these files through the same virtual-path mechanism it uses for scripts and images, regardless of the Android storage layout.
+
+## Persistent Character State
+
+Rather than relying on filesystem presence checks, the port tracks character state through Ren'Py's persistent store. Three helper functions in `definitions.rpy` manage this state:
+
+```python
+def delete_character(name):  # TO!DONE: character fix!
+    setattr(persistent, name, "deleted")
+    renpy.save_persistent()
+
+def restore_character(name):  # TO!DONE: character fix!
+    setattr(persistent, name, "restored")
+
+def restore_all_characters():
+    for char in ("monika", "natsuki", "yuri", "sayori"):  # TO!DONE: character fix!
+        restore_character(char)
+    renpy.save_persistent()
+
+def check_if_exist(name):  # Changed
+    try:
+        return getattr(persistent, name) == "restored"
+    except:
+        return True
+```
+
+<Steps>
+  <Step title="delete_character(name)">
+    Sets `persistent.{name}` to the string `"deleted"` and immediately flushes the persistent store to disk via `renpy.save_persistent()`. For example, `delete_character("monika")` sets `persistent.monika = "deleted"`.
+  </Step>
+  <Step title="restore_character(name)">
+    Sets `persistent.{name}` to `"restored"`. Does not call `renpy.save_persistent()` — callers that restore a single character should call it themselves, or use `restore_all_characters()` which saves after restoring all four.
+  </Step>
+  <Step title="restore_all_characters()">
+    Iterates over the fixed tuple `("monika", "natsuki", "yuri", "sayori")` and calls `restore_character` for each, then saves the persistent store once.
+  </Step>
+  <Step title="check_if_exist(name)">
+    Returns `True` if `persistent.{name} == "restored"`. Returns `True` on any exception (including `AttributeError` when the key has never been set), which means a character whose state has never been explicitly deleted is treated as present — matching the default PC behaviour.
+  </Step>
+</Steps>
+
+## In-Game Characters Screen
+
+The `characters` screen defined in `screens.rpy` uses `check_if_exist` to gate the delete buttons. A character's button is insensitive if they have already been deleted:
+
+```python
+# Added by AlexAzumi
+init -501 screen characters() tag menu:
+    use game_menu(_("Files"), scroll="viewport"):
+        vbox:
+            style_prefix "navigation"
+            ...
+            python:
+                monika_flag  = check_if_exist("monika")
+                natsuki_flag = check_if_exist("natsuki")
+                sayori_flag  = check_if_exist("sayori")
+                yuri_flag    = check_if_exist("yuri")
+
+            textbutton "Restore all characters":
+                action [Function(restore_all_characters), ...]
+            textbutton "Delete Monika":
+                action [Function(delete_character, "monika"), ...]
+                sensitive monika_flag
+            ...
+```
+
+The screen is only shown in the navigation menu after `persistent.playthrough > 0`, so it is not accessible from a fresh start.
+
+<Note>
+  `.chr` files and the **Characters** menu they power are a core part of DDLC's fourth-wall-breaking design. The port's implementation intentionally mirrors the PC mechanics as closely as possible — the only difference is that state is stored in `persistent` rather than on the raw filesystem.
+</Note>
