@@ -1,14 +1,14 @@
 ---
-title: "How .chr Files Work in the Android Port"
+title: "How .chr Character Files Work in the DDLC Android Port"
 sidebarTitle: ".chr Files"
 description: "Explains the role of .chr character files in DDLC's secret menu, why they broke on Android, and how the fix was implemented by contributor AlexAzumi."
 ---
 
+DDLC ships four files — `monika.chr`, `natsuki.chr`, `yuri.chr`, and `sayori.chr` — that the game reads from disk at runtime to determine which characters are currently "present" in the story. Deleting or manipulating these files outside the game is part of DDLC's meta-narrative design, and the game provides an in-game **Characters** menu (accessible from the main navigation after reaching a certain point in the story) that lets players manage character state without touching the filesystem directly.
+
 <Warning>
   **Spoiler warning.** This page discusses `.chr` files, which are central to DDLC's story. The existence of these files, what they do, and how the port manages them are all major narrative spoilers. Do not read further if you have not completed the game.
 </Warning>
-
-DDLC ships four files — `monika.chr`, `natsuki.chr`, `yuri.chr`, and `sayori.chr` — that the game reads from disk at runtime to determine which characters are currently "present" in the story. Deleting or manipulating these files outside the game is part of DDLC's meta-narrative design, and the game provides an in-game **Characters** menu (accessible from the main navigation after reaching a certain point in the story) that lets players manage character state without touching the filesystem directly.
 
 ## Why .chr Files Broke on Android
 

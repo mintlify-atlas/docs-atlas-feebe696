@@ -49,7 +49,7 @@ RAPT (Ren'Py Android Packaging Tools) is the official toolchain for compiling Re
 
     - `"package"`: `"ru.saber_nyan.ddlc"` — change this if you are building a fork with a different identity
     - `"version"`: `"0.0.5"` and `"numeric_version"`: `"5"` — increment for new releases
-    - `"target_version"`: `14` — Android 4.0 minimum API level
+    - `"target_version"`: `14` — Android API level target
 
     See [Android Config](/building/android-config) for a full description of every field.
   </Step>
@@ -100,19 +100,18 @@ RAPT (Ren'Py Android Packaging Tools) is the official toolchain for compiling Re
   </Step>
 
   <Step title="Locate the output APK">
-    After a successful build, the `.apk` file is written to the `bin/` directory inside the project:
+    After a successful build, RAPT copies the `.apk` files to the `bin/` directory inside the Ren'Py SDK's `rapt/` folder. The filenames include the package name and build variant, for example:
 
     ```
-    ddlc-android/
-      bin/
-        DDLC-0.0.5-release.apk   ← release build
-        DDLC-0.0.5-debug.apk     ← debug build
+    rapt/bin/
+      ru.saber_nyan.ddlc-release.apk
+      ru.saber_nyan.ddlc-debug.apk
     ```
 
     You can install the APK directly to a connected device using `adb`:
 
     ```bash
-    adb install bin/DDLC-0.0.5-release.apk
+    adb install /path/to/renpy-sdk/rapt/bin/ru.saber_nyan.ddlc-release.apk
     ```
   </Step>
 </Steps>
@@ -136,9 +135,9 @@ The `options.rpy` classify rules produce four `.rpa` archives bundled into the A
 |---------|----------|
 | `scripts.rpa` | `.rpyc`, `.txt`, `.chr` files |
 | `images.rpa` | `.jpg`, `.png` files |
-| `audio.rpa` | `.wav`, `.mp3`, `.ogg` files |
+| `audio.rpa` | `.wav`, `.mp3`, `.ogg`, `.otf` files |
 | `fonts.rpa` | `.ttf` files |
 
 <Note>
-  `.rpy` source files, `.psd` files, editor project files (`.sublime-project`, `.sublime-workspace`), backup files (`**.bak`, `**~`), hidden files (`**/.**`), and the `game/cache/` directory are all excluded from the APK. The raw source scripts never ship to end users.
+  `.otf` font files are classified into the `audio` archive rather than `fonts` — this matches the `build.classify("game/**.otf", "audio")` rule in `options.rpy`. `.rpy` source files, `.psd` files, editor project files (`.sublime-project`, `.sublime-workspace`), backup files (`**.bak`, `**~`), hidden files (`**/.**`), and the `game/cache/` directory are all excluded from the APK. The raw source scripts never ship to end users.
 </Note>

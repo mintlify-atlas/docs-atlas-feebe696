@@ -1,7 +1,7 @@
 ---
-title: "Save System and Persistent State on Android"
+title: "Save System Configuration and Persistent State on Android"
 sidebarTitle: "Save System"
-description: "Documents DDLC Android's save configuration: autosave slots, background save behavior, persistent character state, and the singleton lock that prevents save corruption."
+description: "Covers DDLC Android's save directory, autosave slots, background save behavior, and the singleton lock that prevents save corruption."
 ---
 
 DDLC for Android inherits Ren'Py's save system and extends it with several mobile-specific settings to ensure game state is never lost when the player switches apps, takes a phone call, or lets the screen time out. This page documents every relevant configuration value, the duplicate-location patch, and the singleton process lock that prevents two concurrent game processes from writing to the same save directory.

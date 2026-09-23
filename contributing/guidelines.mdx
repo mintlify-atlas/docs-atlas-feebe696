@@ -96,6 +96,7 @@ def delete_character(name):  # TO!DONE: character fix!
 
 def restore_character(name):  # TO!DONE: character fix!
     setattr(persistent, name, "restored")
+    renpy.save_persistent()
 ```
 
 **Ren'Py script naming**
